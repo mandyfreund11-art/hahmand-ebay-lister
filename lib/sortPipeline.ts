@@ -124,7 +124,7 @@ async function claudeJson<T>(
         await sleep(wait);
         continue;
       }
-      console.warn(`[sort] ${label}: giving up (${status ?? (e as Error).message})`);
+      console.error("[sort] ANTHROPIC ERROR:", e);
       return null;
     }
   }
