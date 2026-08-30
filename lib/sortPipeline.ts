@@ -124,7 +124,7 @@ async function claudeJson<T>(
         await sleep(wait);
         continue;
       }
-      console.error("[sort] ANTHROPIC ERROR:", JSON.stringify(e, null, 2));
+      console.error("[sort] ANTHROPIC ERROR BODY:", JSON.stringify((e as any).error, null, 2));
       return null;
     }
   }
