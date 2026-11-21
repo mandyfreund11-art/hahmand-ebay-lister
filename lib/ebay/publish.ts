@@ -749,31 +749,54 @@ async function uploadPhoto(
   mediaType: string,
   name: string
 ): Promise<string | null> {
-  const xml = `<?xml version="1.0" encoding="utf-8"?>
-<UploadSiteHostedPicturesRequest xmlns="urn:ebay:apis:eBLBaseComponents">
-  <PictureName>${name.slice(0, 50)}</PictureName>
-  <PictureUploadPolicy>ClearAndNew</PictureUploadPolicy>
-</UploadSiteHostedPicturesRequest>`;
-
   const data = base64.includes(",") ? base64.split(",")[1] : base64;
   const bytes = Buffer.from(data, "base64");
-  const form = new FormData();
-  form.append("XML Payload", new Blob([xml], { type: "text/xml;charset=utf-8" }), "payload.xml");
-  form.append("image", new Blob([new Uint8Array(bytes)], { type: mediaType }), name);
 
-  const resp = await fetch(EBAY_TRADING, {
-    method: "POST",
-    headers: {
-      "X-EBAY-API-SITEID": "0",
-      "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
-      "X-EBAY-API-CALL-NAME": "UploadSiteHostedPictures",
-      "X-EBAY-API-IAF-TOKEN": accessToken,
-    },
-    body: form,
-  });
-  const text = await resp.text();
-  const m = text.match(/<FullURL>([^<]+)<\/FullURL>/);
-  return m ? m[1] : null;
+  const form = new FormData();
+  form.append(
+    "image",
+    new Blob([new Uint8Array(bytes)], { type: mediaType }),
+    name
+  );
+
+  const resp = await fetch(
+    "https://apim.ebay.com/commerce/media/v1_beta/image/create_image_from_file",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: form,
+    }
+  );
+
+  const result = await resp.json();
+
+  if (!resp.ok) {
+    throw new Error(
+      `eBay photo upload failed: ${JSON.stringify(result)}`
+    );
+  }
+
+  if (result.imageUrl) return result.imageUrl;
+
+  const location = resp.headers.get("location");
+  if (location) {
+    const details = await fetch(location, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!details.ok) {
+      throw new Error("Could not retrieve uploaded eBay photo.");
+    }
+
+    const image = await details.json();
+    if (image.imageUrl) return image.imageUrl;
+  }
+
+  throw new Error("eBay did not return a photo URL.");
 }
 
 // ── Policies & location ──────────────────────────────────────────────────────
