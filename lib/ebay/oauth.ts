@@ -1,4 +1,3 @@
-import { boundedFetch } from "@/lib/network";
 // eBay OAuth: authorize URL, code exchange, and token refresh.
 // Ported from _get_oauth_code / _exchange_code / _refresh_token in the script.
 
@@ -74,9 +73,9 @@ function tokenErrorMessage(status: number, body: string): string {
 
 async function postToken(
   creds: EbayCreds,
-  body: Record<string, string>,
+  body: Record<string, string>
 ): Promise<TokenResponse> {
-  const resp = await boundedFetch(EBAY_TOKEN_URL, {
+  const resp = await fetch(EBAY_TOKEN_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -102,9 +101,7 @@ export function exchangeCode(code: string): Promise<TokenResponse> {
 }
 
 // Mint a fresh short-lived access token from a stored refresh token.
-export function refreshAccessToken(
-  refreshToken: string,
-): Promise<TokenResponse> {
+export function refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
   const creds = getEbayCreds();
   return postToken(creds, {
     grant_type: "refresh_token",

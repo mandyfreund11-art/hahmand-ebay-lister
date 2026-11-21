@@ -1,6 +1,3 @@
-import type { AspectMeta } from "./ebay/taxonomy";
-import type { AiUsage } from "./ai-usage";
-import type { ShippingSelection } from "./validation";
 // Shape of a generated listing. Mirrors the JSON the model returns in the
 // Python script's analyze_photos(), plus the routed profile.
 
@@ -9,10 +6,6 @@ export interface ListingResult {
   category?: string;
   category_hint?: string;
   category_id?: string;
-  ebay_condition?: string;
-  evidence?: Record<string, number[]>;
-  // Confidence (60–100) for specifics the AI estimated rather than read off a label.
-  estimates?: Record<string, number>;
   brand?: string;
   item_type?: string;
   color?: string[] | string;
@@ -23,7 +16,6 @@ export interface ListingResult {
   measurements?: string;
   description: string;
   suggested_price?: number | string;
-  search_terms?: string[];
   seo_keywords?: string[];
   key_features?: string[];
   item_specifics?: Record<string, string>;
@@ -37,8 +29,6 @@ export interface AnalyzeRequestBody {
   // Optional model overrides; server falls back to its defaults when omitted.
   analysisModel?: string;
   routerModel?: string;
-  // Thinking effort for the listing step on Claude 5.x models ("low" | "medium").
-  analysisEffort?: string;
 }
 
 export interface AnalyzeResponse {
@@ -60,9 +50,6 @@ export interface Photo {
   id: string;
   previewUrl: string;
   mediaType: string;
-  original?: Blob;
-  uploadData?: string;
-  analysisSelected?: boolean;
   data: string; // base64, no prefix
 }
 
@@ -74,17 +61,6 @@ export type PostStatus = "idle" | "posting" | "posted" | "error";
 // shown beside the AI's estimate so the seller prices with real data in view.
 export interface CompsSummary {
   ok: boolean;
-  sources?: {
-    id: string;
-    title: string;
-    url: string;
-    price: number;
-    shipping?: number;
-    total?: number;
-    condition: string;
-  }[];
-  checkedAt?: string;
-  matchBasis?: string;
   query: string;
   count: number;
   median?: number;
@@ -99,7 +75,6 @@ export interface CompsSummary {
 }
 
 export interface ItemGroup {
-  cloudBatchId?: string;
   id: string;
   sku: string; // bin reference, e.g. "K75-A"
   name: string;
@@ -107,16 +82,6 @@ export interface ItemGroup {
   listing?: ListingResult;
   status: ItemStatus;
   error?: string;
-  analysisPhotoIds?: string[];
-  preparation?: PreparedCategory;
-  preparationError?: string;
-  usage?: AiUsage[];
-  compsStatus?: "loading" | "unavailable" | "ready" | "stale";
-  shipping?: Partial<ShippingSelection>;
-  imageUrls?: string[];
-  uploadedPhotoIds?: string[];
-  publicationAttemptSku?: string;
-  evidencePhotoIds?: string[];
   // Market price check (fetched right after the listing is written)
   comps?: CompsSummary;
   // eBay posting state (Phase 2)
@@ -125,15 +90,4 @@ export interface ItemGroup {
   postError?: string;
   // Non-fatal quality warnings from the last publish (e.g. schema unavailable)
   postWarnings?: string[];
-}
-
-export interface PreparedCategory {
-  suggestions?: import("./ebay/taxonomy").CategorySuggestion[];
-  categoryId: string;
-  categoryName: string;
-  aspects: AspectMeta[];
-  conditions: { value: string; label: string }[];
-  expiresAt: number;
-  signature: string;
-  issues: string[];
 }

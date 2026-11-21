@@ -1,7 +1,5 @@
 "use client";
 
-import { DraftControls } from "./DraftControls";
-import { draftIssues } from "@/lib/client-review";
 import { useEffect, useMemo, useState } from "react";
 import { SIZE_REQUIRED_CATEGORIES } from "@/lib/categories";
 import type { ItemGroup, ListingResult, Photo } from "@/lib/types";
@@ -12,12 +10,10 @@ const TITLE_LIMIT = 80;
 const CONDITIONS: { value: string; label: string }[] = [
   { value: "NEW_WITH_TAGS", label: "New with tags" },
   { value: "NEW_NO_TAGS", label: "New without tags" },
-  { value: "NEW_WITH_DEFECTS", label: "New with defects" },
   { value: "EXCELLENT", label: "Pre-owned · Excellent" },
   { value: "VERY_GOOD", label: "Pre-owned · Very good" },
   { value: "GOOD", label: "Pre-owned · Good" },
   { value: "FAIR", label: "Pre-owned · Fair" },
-  { value: "FOR_PARTS_OR_NOT_WORKING", label: "For parts / not working" },
 ];
 
 function formatPrice(value: ListingResult["suggested_price"]): string {
@@ -60,7 +56,6 @@ interface ListingCardProps {
   group: ItemGroup;
   photoById: (id: string) => Photo | undefined;
   ebayConnected: boolean;
-  onGroupEdit: (id: string, patch: Partial<ItemGroup>) => void;
   onEdit: (groupId: string, patch: Partial<ListingResult>) => void;
   onRenameSku: (groupId: string, sku: string) => void;
   onRetry: (groupId: string) => void;
@@ -72,7 +67,6 @@ export function ListingCard({
   photoById,
   ebayConnected,
   onEdit,
-  onGroupEdit,
   onRenameSku,
   onRetry,
   onPost,
@@ -83,9 +77,7 @@ export function ListingCard({
 
   const specifics = useMemo(() => {
     const entries = Object.entries(listing?.item_specifics ?? {});
-    return entries.filter(
-      ([k, v]) => v && String(v).trim() !== "" && !k.startsWith("---"),
-    );
+    return entries.filter(([k, v]) => v && v.trim() !== "" && !k.startsWith("---"));
   }, [listing?.item_specifics]);
 
   const titleLen = listing?.title?.length ?? 0;
@@ -125,14 +117,9 @@ export function ListingCard({
             )}
             {group.status === "done" &&
               (priceMissing ? (
-                <span style={{ color: "var(--color-danger)" }}>
-                  ⚠️ needs a price
-                </span>
+                <span style={{ color: "var(--color-danger)" }}>⚠️ needs a price</span>
               ) : (
-                <>
-                  {formatPrice(listing?.suggested_price)} ·{" "}
-                  {draftIssues(group).length ? "needs review" : "ready"}
-                </>
+                <>✅ {formatPrice(listing?.suggested_price)} · ready</>
               ))}
             {group.status === "error" && (
               <span style={{ color: "var(--color-danger)" }}>
@@ -161,12 +148,7 @@ export function ListingCard({
       </header>
 
       {open && listing && group.status === "done" && (
-        <fieldset
-          className="listing-card-body"
-          disabled={
-            group.postStatus === "posted" || group.postStatus === "posting"
-          }
-        >
+        <div className="listing-card-body">
           <div className="result-field">
             <label>
               Title
@@ -201,9 +183,7 @@ export function ListingCard({
                 onChange={(e) => onRenameSku(group.id, e.target.value)}
               />
             </div>
-            <div
-              className={`stat editable${priceMissing ? " needs-attention" : ""}`}
-            >
+            <div className={`stat editable${priceMissing ? " needs-attention" : ""}`}>
               <label className="k" htmlFor={`price-${group.id}`}>
                 Price
               </label>
@@ -254,12 +234,7 @@ export function ListingCard({
               <select
                 id={`cond-${group.id}`}
                 value={listing.condition ?? "GOOD"}
-                onChange={(e) =>
-                  onEdit(group.id, {
-                    condition: e.target.value,
-                    ebay_condition: "",
-                  })
-                }
+                onChange={(e) => onEdit(group.id, { condition: e.target.value })}
               >
                 {/* Keep an unexpected model value selectable rather than losing it. */}
                 {listing.condition &&
@@ -282,9 +257,7 @@ export function ListingCard({
               </div>
             )}
             {(sizeRequired || listing.size) && (
-              <div
-                className={`stat editable${sizeMissing ? " needs-attention" : ""}`}
-              >
+              <div className={`stat editable${sizeMissing ? " needs-attention" : ""}`}>
                 <label className="k" htmlFor={`size-${group.id}`}>
                   Size
                 </label>
@@ -320,9 +293,7 @@ export function ListingCard({
             <label>Description</label>
             <textarea
               value={listing.description}
-              onChange={(e) =>
-                onEdit(group.id, { description: e.target.value })
-              }
+              onChange={(e) => onEdit(group.id, { description: e.target.value })}
               rows={8}
             />
             <div className="copy-row">
@@ -330,14 +301,20 @@ export function ListingCard({
             </div>
           </div>
 
-          <button type="button" onClick={() => onRetry(group.id)}>
-            Re-analyze selected photos (replaces this draft)
-          </button>
-          <DraftControls
-            group={group}
-            photoById={photoById}
-            onGroupEdit={onGroupEdit}
-          />
+          {specifics.length > 0 && (
+            <details className="specifics-details">
+              <summary>{specifics.length} item specifics</summary>
+              <div className="specifics">
+                {specifics.map(([k, v]) => (
+                  <div className="row" key={k}>
+                    <span className="k">{k}</span>
+                    <span>{v}</span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+
           {/* eBay posting */}
           {group.postStatus === "posted" ? (
             <>
@@ -369,15 +346,11 @@ export function ListingCard({
                 type="button"
                 className="btn btn-primary"
                 onClick={() => onPost(group.id)}
-                disabled={
-                  group.postStatus === "posting" ||
-                  draftIssues(group).length > 0
-                }
+                disabled={group.postStatus === "posting"}
               >
                 {group.postStatus === "posting" ? (
                   <>
-                    <span className="spinner" aria-hidden="true" /> Posting to
-                    eBay…
+                    <span className="spinner" aria-hidden="true" /> Posting to eBay…
                   </>
                 ) : (
                   "🚀 Post this to eBay"
@@ -388,11 +361,9 @@ export function ListingCard({
               )}
             </div>
           ) : (
-            <p className="post-hint">
-              Connect eBay (top of page) to post this listing.
-            </p>
+            <p className="post-hint">Connect eBay (top of page) to post this listing.</p>
           )}
-        </fieldset>
+        </div>
       )}
     </article>
   );
